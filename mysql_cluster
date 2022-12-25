@@ -1,0 +1,66 @@
+172.17.10.106 MEI-MRHBDMDB1
+172.17.10.107 MEI-HBDMDB2
+172.17.10.108 MEI-MRHBDMDB3
+####################iptables for mysql##################
+iptables -I INPUT 2  -s 172.17.10.106/29 -p tcp -m tcp --dport 3306 -j ACCEPT 
+iptables -t filter -L INPUT --line-numbers -n
+##delete
+iptables -D INPUT 2 -s 172.17.10.106/29 -p tcp -m tcp --dport 3306 -j ACCEPT
+########################################################
+
+
+################check network connectivity##############
+curl -v telnet://MEI-MRHBDMDB1:3306
+curl -v telnet://MEI-HBDMDB2:3306
+curl -v telnet://MEI-MRHBDMDB3:3306
+
+########################################################
+
+################on all 3 hosts##########################
+yum install mlocate vim bind-utils percona-mysql-shell epel-release -y
+
+alter user root@localhost identified by 'OliML53#@';
+create user rep@'172.17.10.%' identified by 'hQtgGEOMwS1YSI9_al';
+GRANT CLONE_ADMIN, CONNECTION_ADMIN, CREATE USER, EXECUTE, FILE, GROUP_REPLICATION_ADMIN, PERSIST_RO_VARIABLES_ADMIN, PROCESS, RELOAD, REPLICATION CLIENT, REPLICATION SLAVE, REPLICATION_APPLIER, REPLICATION_SLAVE_ADMIN, ROLE_ADMIN, SELECT, SHUTDOWN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'rep'@'172.17.10.%' WITH GRANT OPTION;
+GRANT DELETE, INSERT, UPDATE ON mysql.* TO 'rep'@'172.17.10.%' WITH GRANT OPTION;
+GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON mysql_innodb_cluster_metadata.* TO 'rep'@'172.17.10.%' WITH GRANT OPTION;
+GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON mysql_innodb_cluster_metadata_bkp.* TO 'rep'@'172.17.10.%' WITH GRANT OPTION;
+GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON mysql_innodb_cluster_metadata_previous.* TO 'rep'@'172.17.10.%' WITH GRANT OPTION;
+
+
+cat <<EOF >> /etc/hosts
+172.17.10.106 MEI-MRHBDMDB1
+172.17.10.107 MEI-HBDMDB2
+172.17.10.108 MEI-MRHBDMDB3
+EOF
+
+
+cat <<'EOF' >>/etc/my.cnf
+innodb_dedicated_server = 1
+binlog_expire_logs_seconds = 864000
+innodb_temp_data_file_path = ibtmp1:12M:autoextend:max:30G
+enforce_gtid_consistency = ON
+gtid_mode = ON
+session_track_gtids = OWN_GTID
+slow_query_log = 1
+slow_query_log_file = /var/lib/mysql/mysql-slow.log
+long_query_time = 20
+log_timestamps = system
+EOF
+########################################################
+
+
+################create cluster##########################
+mysqlsh --uri=root@172.17.10.106
+dba.configureReplicaSetInstance("rep@MEI-MRHBDMDB3");
+dba.configureReplicaSetInstance("rep@MEI-HBDMDB2")
+dba.configureReplicaSetInstance("rep@MEI-MRHBDMDB3")
+
+mysqlsh --uri=rep@MEI-MRHBDMDB1
+dba.createReplicaSet("AL_RS");
+var rs=dba.getReplicaSet()
+rs.status()
+rs.addInstance("rep@MEI-HBDMDB2")
+rs.addInstance("rep@MEI-MRHBDMDB3")
+rs.status()
+########################################################
