@@ -19,7 +19,7 @@ curl -v telnet://MEI-MRHBDMDB3:3306
 ################on all 3 hosts##########################
 yum install mlocate vim bind-utils percona-mysql-shell epel-release -y
 
-alter user root@localhost identified by 'OliML53#@';
+alter user root@localhost identified by 'P@ssw0rd';
 create user rep@'172.17.10.%' identified by 'hQtgGEOMwS1YSI9_al';
 GRANT CLONE_ADMIN, CONNECTION_ADMIN, CREATE USER, EXECUTE, FILE, GROUP_REPLICATION_ADMIN, PERSIST_RO_VARIABLES_ADMIN, PROCESS, RELOAD, REPLICATION CLIENT, REPLICATION SLAVE, REPLICATION_APPLIER, REPLICATION_SLAVE_ADMIN, ROLE_ADMIN, SELECT, SHUTDOWN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'rep'@'172.17.10.%' WITH GRANT OPTION;
 GRANT DELETE, INSERT, UPDATE ON mysql.* TO 'rep'@'172.17.10.%' WITH GRANT OPTION;
